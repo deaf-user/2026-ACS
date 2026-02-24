@@ -24,6 +24,8 @@ void setup() {
     #endif
 }
 
+//hi nathan
+
 void loop(void){
 
     //1 HZ sampling period for accelerometer
