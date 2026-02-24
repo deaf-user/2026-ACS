@@ -24,7 +24,6 @@ void setup() {
     #endif
 }
 
-//hi nathan
 
 void loop(void){
 
