@@ -4,9 +4,17 @@
 
 //Depending on what you want to do 
 //comment and uncomment what you want to do
-#define SERIAL_TEST
-//#define SD_LOG
 //#define REAL_FLIGHT
+
+//this makes it so if REAL_FLIGHT is defined the controller
+//isn't wasting time trying to print serial data
+#ifndef REAL_FLIGHT
+#define SERIAL
+#endif
+
+//SD_log can be one at anytime for real flight or testing
+//#define SD_LOG
+
 
 //Serial functions
 void print_serial_acceleration(float x, float y, float z);

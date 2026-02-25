@@ -1,0 +1,3 @@
+enum states {
+    RESTING, SPEED_UP, MACH_FLIGHT, CONTROL, RECOVERY
+};

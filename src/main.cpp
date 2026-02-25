@@ -9,7 +9,12 @@ ExternalSensors sensors;
 //T = temperature, H = height, P = pressure
 static float x,y,z,T,H,P;
 
+// #include "../lib/eigen/Eigen/Eigen"
+
 void setup() {
+
+    // struct C_MatrixXd *matrix1;
+    // matrix1 = MatrixXd_new(3,3);
     // these statements print serial data to the laptop
     // SERIAL_TEST is defined in data_logger.h
     #ifdef SERIAL_TEST
@@ -24,6 +29,7 @@ void setup() {
     #endif
 }
 
+//hi nathan
 
 void loop(void){
 
