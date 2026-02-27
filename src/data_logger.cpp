@@ -74,3 +74,37 @@ void print_serial_pressure(float P){
     Serial.print("\n");
     Serial.write('\r');
 }
+
+int appendLog(char* chunk_buf, int chunk_index, int CHUNK_SIZE,
+float ax, float ay, float az, float gx, float gy, float gz, float H)
+{
+    int n = snprintf(
+        &chunk_buf[chunk_index],
+        CHUNK_SIZE - chunk_index,
+        "%lu,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
+        micros(),
+        ax, ay, az,
+        gx, gy, gz, 
+        H);
+
+    chunk_index += n;
+    return (chunk_index);
+}
+
+int serviceSD(bool* chunk_ready, int chunk_index, 
+  File &logFile, char* chunk_buf)
+{
+    if (*chunk_ready)
+    {
+        noInterrupts();
+
+        uint32_t bytesToWrite = chunk_index;
+        chunk_index = 0;
+        *chunk_ready = false;
+
+        interrupts();
+
+        logFile.write((uint8_t*)chunk_buf, bytesToWrite);
+    }
+    return (chunk_index);
+}

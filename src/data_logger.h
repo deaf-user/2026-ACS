@@ -1,6 +1,8 @@
 //pragma makes it so data_logger.h is compiled once
 #pragma once
 #include <Arduino.h>
+#include <SD.h>
+#include <SPI.h>
 
 //Depending on what you want to do 
 //comment and uncomment what you want to do
@@ -13,7 +15,7 @@
 #endif
 
 //SD_log can be one at anytime for real flight or testing
-//#define SD_LOG
+#define SD_LOG
 
 
 //Serial functions
@@ -25,3 +27,8 @@ void print_serial_altitude(float H);
 void print_serial_pressure(float P);
 
 //SD card functions
+
+int appendLog(char* chunk_buf, int chunk_index, int CHUNK_SIZE,
+float ax, float ay, float az, float gx, float gy, float gz, float H);
+int serviceSD(bool* chunk_ready, int chunk_index, 
+  File &logFile, char* chunk_buf);
