@@ -24,6 +24,11 @@ static float kax,kay,kaz,kH,kgx,kgy,kgz;
 
 #ifdef REAL_FLIGHT
 enum states state = RESTING;
+static float init_H = 0;
+
+void controlISR(){
+  RUN_ACS = true;
+}
 //endif for REAL_FLIGHT
 #endif
 
@@ -41,19 +46,14 @@ volatile int chunk_idx_raw = 0;
 volatile int chunk_idx_filtered = 0;
 bool chunk_ready_raw = false;
 bool chunk_ready_filtered = false;
-
+const int chipSelect = BUILTIN_SDCARD;
 #endif
 
-const int chipSelect = BUILTIN_SDCARD;
-
-void controlISR(){
-  RUN_ACS = true;
-}
+#ifdef TEST_ANGLE
+static float current_gx, current_gy, current_gz;
+#endif
 
 void setup() {
-
-    // 150 Hz = 6667 microseconds
-    controlTimer.begin(controlISR, 6667);
 
     // these statements print serial data to the laptop
     // SERIAL is defined in data_logger.h
@@ -77,19 +77,51 @@ void setup() {
     #endif
 
     sensors.startupTasks();
+
+    #ifdef REAL_FLIGHT
+    // 150 Hz = 6667 microseconds
+    controlTimer.begin(controlISR, 6667);
+    sensors.readAltitude(init_H);
+    #endif
+
+    #ifdef TEST_ANGLE
+    sensors.readGyroscope(current_gx, current_gy, current_gz);
+    #endif
 }
 
 //hi nathan
 
 void loop(void){
   
+  
+  #ifdef TEST_ANGLE
+  static int delay_time = 100;
+  static float Ts = (float)delay_time/1000;
+  delay(delay_time);
+  static float alpha = 0.98f;
+  sensors.readGyroscope(gx,gy,gz);
+  sensors.readAcceleration(ax,ay,az);
+  // current_gx += gx*Ts;
+  // current_gy += gy*Ts;
+  static float accel_pitch = atan2(-ax, sqrt(ay*ay + az*az));
+  static float accel_roll  = atan2(ay, az);
+  current_gy = alpha * (current_gy + gy * Ts)
+      + (1 - alpha) * accel_pitch;
+  current_gx  = alpha * (current_gx  + gx * Ts)
+      + (1 - alpha) * accel_roll;  
+  current_gz += gz*Ts;
+  print_serial_gyroscope(current_gx, current_gy, current_gz);
+  // print_serial_gyroscope(gx, gy, gz);
+  #endif
+
+  #ifdef REAL_FLIGHT
   if (RUN_ACS) {
         RUN_ACS = false;
         ACS_update();
   }
-
   chunk_idx_raw = serviceSD( &chunk_ready_raw, chunk_idx_raw, Raw_data, chunk_buf_raw);
   chunk_idx_filtered = serviceSD( &chunk_ready_filtered, chunk_idx_filtered, Filtered_data, chunk_buf_filtered);
+  #endif
 
 }
 
@@ -107,20 +139,23 @@ void ACS_update(void){
 
   #ifdef REAL_FLIGHT
   switch(state):
-    //grabs accel_data
-    //grabs height data
     case RESTING:
+      if((H - init_H) >= 100){
+        state = SPEED_UP
+      }
     // position is higher than initial position
     // switch state if 100 ft higher than initial position
     // switch to SPEED_UP
     // wait an initial time for safety of start up transients
     break;
     case SPEED_UP:
+      if()//calculate acceleration from angle of rocket
     // tracks acceleration
     // once acceleration is less than 0
     // some value switch states
     break;
     case MACH_FLIGHT:
+      velocity = (kH - prev_H)/
     // checks velocity
     // if velocity is above .7 dont move
     // if velocity is consistently below .7

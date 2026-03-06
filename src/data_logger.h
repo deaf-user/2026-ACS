@@ -8,6 +8,8 @@
 //comment and uncomment what you want to do
 //#define REAL_FLIGHT
 
+#define TEST_ANGLE
+
 //this makes it so if REAL_FLIGHT is defined the controller
 //isn't wasting time trying to print serial data
 #ifndef REAL_FLIGHT
@@ -15,7 +17,7 @@
 #endif
 
 //SD_log can be one at anytime for real flight or testing
-#define SD_LOG
+// #define SD_LOG
 
 
 //Serial functions
