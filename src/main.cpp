@@ -1,6 +1,7 @@
 #include "data_logger.h"
 #include "read_accel_data.h"
 #include <IntervalTimer.h>
+#include <Servo.h>
 
 IntervalTimer controlTimer;
 
@@ -23,8 +24,17 @@ static float kax,kay,kaz,kH,kgx,kgy,kgz;
 //static float T,P;
 
 #ifdef REAL_FLIGHT
-enum states state = RESTING;
+#define RESTING 0
+#define SPEED_UP 1
+#define MACH_FLIGHT 2
+#define CONTROL 3
+#define RECOVERY 4
+int state = RESTING;
 static float init_H = 0;
+
+Servo myServo_darling;
+int servo_start_us = 1500;
+int servo_end_us = 1840;
 
 void controlISR(){
   RUN_ACS = true;
@@ -47,6 +57,17 @@ volatile int chunk_idx_filtered = 0;
 bool chunk_ready_raw = false;
 bool chunk_ready_filtered = false;
 const int chipSelect = BUILTIN_SDCARD;
+
+void ACS_update(void);
+
+#ifdef SERIAL
+#undef SERIAL
+#endif
+
+#define ACCEL_THRESHOLLD 50
+
+uint32_t t0 = 0;
+
 #endif
 
 #ifdef TEST_ANGLE
@@ -62,18 +83,24 @@ void setup() {
     Serial.begin(115200);
     //gives computer time to open serial moniter
     delay(10000);   // give USB time to enumerate
-    Serial.print("Serial ready");
+    Serial.print("Serial ready\n");
     #endif
 
     #ifdef SD_LOG
     if (!SD.begin(chipSelect)) {
+        #ifdef SERIAL
         Serial.println("Card failed, or not present");
+        #endif
+        
         while (1) {
         // No SD card, so don't do anything more - stay stuck here
         }
     }
-    Raw_data = SD.open("Raw_data.bin", FILE_WRITE);
-    Filtered_data = SD.open("Filtered_data.bin", FILE_WRITE);
+    if(SD.exists("Raw_data.txt"))
+      SD.remove("Raw_data.txt");
+    
+      Raw_data = SD.open("Raw_data.txt", FILE_WRITE);
+    // Filtered_data = SD.open("Filtered_data.bin", FILE_WRITE);
     #endif
 
     sensors.startupTasks();
@@ -82,6 +109,8 @@ void setup() {
     // 150 Hz = 6667 microseconds
     controlTimer.begin(controlISR, 6667);
     sensors.readAltitude(init_H);
+    myServo_darling.attach(3);
+    myServo_darling.writeMicroseconds(servo_start_us);
     #endif
 
     #ifdef TEST_ANGLE
@@ -127,59 +156,74 @@ void loop(void){
 
 void ACS_update(void){
 
+  static int ACS_counter = 0;
+  ACS_counter++;
   sensors.readAcceleration(ax,ay,az);
   sensors.readGyroscope(gx,gy,gz);
   sensors.readAltitude(H);
 
   #ifdef SERIAL
-  print_serial_acceleration(ax,ay,az);
-  print_serial_gyroscope(gx,gy,gz);
-  print_serial_altitude(H);
+  // print_serial_acceleration(ax,ay,az);
+  // print_serial_gyroscope(gx,gy,gz);
+  // print_serial_altitude(H);
   #endif
 
   #ifdef REAL_FLIGHT
-  switch(state):
+  switch(state) {
     case RESTING:
-      if((H - init_H) >= 100){
-        state = SPEED_UP
+      if(az > ACCEL_THRESHOLLD) {
+        state = SPEED_UP;
+        //logs time that flight starts
+        t0 = micros();
       }
-    // position is higher than initial position
-    // switch state if 100 ft higher than initial position
-    // switch to SPEED_UP
-    // wait an initial time for safety of start up transients
     break;
+
     case SPEED_UP:
-      if()//calculate acceleration from angle of rocket
-    // tracks acceleration
-    // once acceleration is less than 0
-    // some value switch states
+      if(az < ACCEL_THRESHOLLD){
+        state = MACH_FLIGHT;
+        ACS_counter = 0;
+      }
     break;
+
     case MACH_FLIGHT:
-      velocity = (kH - prev_H)/
-    // checks velocity
-    // if velocity is above .7 dont move
-    // if velocity is consistently below .7
-    // switch
+      if(ACS_counter > (150 * 2)){
+        state = CONTROL;
+        myServo_darling.writeMicroseconds(servo_end_us);
+        ACS_counter = 0;
+      }
+      
     break;
     case CONTROL:
+      if(ACS_counter > (150 * 60 * 2)){
+        state = RECOVERY;
+        myServo_darling.writeMicroseconds(servo_start_us);
+      }
     // implements the control loop
     // moves if next altitude is lower than previous altitude
     break;
     case RECOVERY:
     // do nothing
     break;
+  }
   #endif
 
   #ifdef SD_LOG
+  if(state >= SPEED_UP && state < RECOVERY){
     chunk_idx_raw = appendLog(chunk_buf_raw, chunk_idx_raw, CHUNK_SIZE,
     ax, ay, az, gx, gy, gz, H);
     if(chunk_idx_raw >= CHUNK_SIZE - 256){
       chunk_ready_raw = true;
     }
-    chunk_idx_filtered = appendLog(chunk_buf_filtered, chunk_idx_filtered, CHUNK_SIZE,
-    kax, kay, kaz, kgx, kgy, kgz, kH);
-    if(chunk_idx_filtered >= CHUNK_SIZE -256 ){
-      chunk_ready_filtered = true;
-    }
+  }else if(state >= RECOVERY){
+      chunk_idx_raw = serviceSD( &chunk_ready_raw, chunk_idx_raw, Raw_data, chunk_buf_raw);
+      Raw_data.flush();
+      Raw_data.close();
+  }
+
+    // chunk_idx_filtered = appendLog(chunk_buf_filtered, chunk_idx_filtered, CHUNK_SIZE,
+    // kax, kay, kaz, kgx, kgy, kgz, kH);
+    // if(chunk_idx_filtered >= CHUNK_SIZE -256 ){
+    //   chunk_ready_filtered = true;
+    // }
   #endif
 }

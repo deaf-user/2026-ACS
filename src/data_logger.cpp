@@ -78,11 +78,12 @@ void print_serial_pressure(float P){
 int appendLog(char* chunk_buf, int chunk_index, int CHUNK_SIZE,
 float ax, float ay, float az, float gx, float gy, float gz, float H)
 {
+    float t_sec = ((float)(micros()-t0))/1e6;
     int n = snprintf(
         &chunk_buf[chunk_index],
         CHUNK_SIZE - chunk_index,
-        "%lu,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
-        micros(),
+        "%f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
+        t_sec,
         ax, ay, az,
         gx, gy, gz, 
         H);

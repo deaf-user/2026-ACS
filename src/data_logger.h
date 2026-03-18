@@ -6,18 +6,19 @@
 
 //Depending on what you want to do 
 //comment and uncomment what you want to do
-//#define REAL_FLIGHT
+#define REAL_FLIGHT
+extern uint32_t t0;
 
-#define TEST_ANGLE
+// #define TEST_ANGLE
 
 //this makes it so if REAL_FLIGHT is defined the controller
 //isn't wasting time trying to print serial data
 #ifndef REAL_FLIGHT
-#define SERIAL
+// #define SERIAL
 #endif
 
 //SD_log can be one at anytime for real flight or testing
-// #define SD_LOG
+#define SD_LOG
 
 
 //Serial functions
