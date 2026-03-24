@@ -1,5 +1,6 @@
 #include "data_logger.h"
 #include "read_accel_data.h"
+#include "Quaternion.h"
 #include <IntervalTimer.h>
 #include <Servo.h>
 
@@ -33,8 +34,8 @@ int state = RESTING;
 static float init_H = 0;
 
 Servo myServo_darling;
-int servo_start_us = 1500;
-int servo_end_us = 1840;
+int servo_end_us = 1500;
+int servo_start_us = 1835;
 
 void controlISR(){
   RUN_ACS = true;
@@ -64,14 +65,15 @@ void ACS_update(void);
 #undef SERIAL
 #endif
 
-#define ACCEL_THRESHOLLD 50
+#define ACCEL_THRESHOLLD 4.66f
 
 uint32_t t0 = 0;
 
 #endif
 
 #ifdef TEST_ANGLE
-static float current_gx, current_gy, current_gz;
+Quaternion Quat;
+static float roll, pitch, yaw;
 #endif
 
 void setup() {
@@ -87,19 +89,21 @@ void setup() {
     #endif
 
     #ifdef SD_LOG
-    if (!SD.begin(chipSelect)) {
-        #ifdef SERIAL
-        Serial.println("Card failed, or not present");
-        #endif
+    // if (!SD.begin(chipSelect)) {
+    //     #ifdef SERIAL
+    //     Serial.println("Card failed, or not present");
+    //     #endif
         
-        while (1) {
-        // No SD card, so don't do anything more - stay stuck here
-        }
-    }
-    if(SD.exists("Raw_data.txt"))
-      SD.remove("Raw_data.txt");
+    //     while (1) {
+    //     // No SD card, so don't do anything more - stay stuck here
+    //     }
+    // }
+
+    // if(SD.exists("Raw_data.txt"))
+    //   SD.remove("Raw_data.txt");
     
-      Raw_data = SD.open("Raw_data.txt", FILE_WRITE);
+    Raw_data = SD.open("Raw_data.txt", FILE_WRITE);
+    Raw_data.seek(Raw_data.size());
     // Filtered_data = SD.open("Filtered_data.bin", FILE_WRITE);
     #endif
 
@@ -114,7 +118,7 @@ void setup() {
     #endif
 
     #ifdef TEST_ANGLE
-    sensors.readGyroscope(current_gx, current_gy, current_gz);
+    sensors.readGyroscope(roll, pitch, yaw);
     #endif
 }
 
@@ -126,20 +130,32 @@ void loop(void){
   #ifdef TEST_ANGLE
   static int delay_time = 100;
   static float Ts = (float)delay_time/1000;
-  delay(delay_time);
-  static float alpha = 0.98f;
-  sensors.readGyroscope(gx,gy,gz);
+
   sensors.readAcceleration(ax,ay,az);
-  // current_gx += gx*Ts;
-  // current_gy += gy*Ts;
-  static float accel_pitch = atan2(-ax, sqrt(ay*ay + az*az));
-  static float accel_roll  = atan2(ay, az);
-  current_gy = alpha * (current_gy + gy * Ts)
-      + (1 - alpha) * accel_pitch;
-  current_gx  = alpha * (current_gx  + gx * Ts)
-      + (1 - alpha) * accel_roll;  
-  current_gz += gz*Ts;
-  print_serial_gyroscope(current_gx, current_gy, current_gz);
+  sensors.readGyroscope(gx,gy,gz);
+
+  imu_update(&Quat, gx,gy,gz,ax,ay,az,Ts);
+  quat_to_euler(Quat, &roll,&pitch,&yaw);
+
+  
+  // my attempt
+  // delay(delay_time);
+  // static float alpha = 0.98f;
+  // sensors.readGyroscope(gx,gy,gz);
+  // sensors.readAcceleration(ax,ay,az);
+  // // current_gx += gx*Ts;
+  // // current_gy += gy*Ts;
+  // static float accel_pitch = atan2(-ax, sqrt(ay*ay + az*az));
+  // static float accel_roll  = atan2(ay, az);
+  // current_gy = alpha * (current_gy + gy * Ts)
+  //     + (1 - alpha) * accel_pitch;
+  // current_gx  = alpha * (current_gx  + gx * Ts)
+  //     + (1 - alpha) * accel_roll;  
+  // current_gz += gz*Ts;
+
+
+
+  print_serial_gyroscope(roll, pitch, yaw);
   // print_serial_gyroscope(gx, gy, gz);
   #endif
 
@@ -157,6 +173,9 @@ void loop(void){
 void ACS_update(void){
 
   static int ACS_counter = 0;
+  static int start_debounce = 0;
+  static int debounce_counter = 0;
+  static int debounce_done = 0;
   ACS_counter++;
   sensors.readAcceleration(ax,ay,az);
   sensors.readGyroscope(gx,gy,gz);
@@ -166,26 +185,61 @@ void ACS_update(void){
   // print_serial_acceleration(ax,ay,az);
   // print_serial_gyroscope(gx,gy,gz);
   // print_serial_altitude(H);
+  
+  //didn't want to remake the function
+  //using this now.
+  // print_serial_altitude(state);
   #endif
 
   #ifdef REAL_FLIGHT
   switch(state) {
     case RESTING:
+      myServo_darling.writeMicroseconds(servo_start_us);
       if(az > ACCEL_THRESHOLLD) {
+        start_debounce = 1;
+      } 
+
+      if(start_debounce == 1){
+        debounce_counter++;
+        if(debounce_counter == (150 * 1)){
+          debounce_done = 1;
+        }
+      }
+      
+      if(debounce_done == 1){
+        start_debounce = 0;
+        debounce_done = 0;
+        debounce_counter = 0;
         state = SPEED_UP;
-        //logs time that flight starts
         t0 = micros();
       }
     break;
 
     case SPEED_UP:
-      if(az < ACCEL_THRESHOLLD){
+      myServo_darling.writeMicroseconds(servo_start_us);
+      if(az < ACCEL_THRESHOLLD) {
+        start_debounce = 1;
+      } 
+
+      if(start_debounce == 1){
+        debounce_counter++;
+        if(debounce_counter == (150 * 1.5)){
+          debounce_done = 1;
+        }
+      }
+      
+      if(debounce_done == 1){
+        start_debounce = 0;
+        debounce_done = 0;
+        debounce_counter = 0;
         state = MACH_FLIGHT;
         ACS_counter = 0;
       }
+
     break;
 
     case MACH_FLIGHT:
+      myServo_darling.writeMicroseconds(servo_start_us);
       if(ACS_counter > (150 * 2)){
         state = CONTROL;
         myServo_darling.writeMicroseconds(servo_end_us);
@@ -194,6 +248,7 @@ void ACS_update(void){
       
     break;
     case CONTROL:
+      myServo_darling.writeMicroseconds(servo_end_us);
       if(ACS_counter > (150 * 60 * 2)){
         state = RECOVERY;
         myServo_darling.writeMicroseconds(servo_start_us);
