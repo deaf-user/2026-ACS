@@ -16,6 +16,10 @@ void imu_update(Quaternion* q,
                 float dt)
 {
     // Normalize accel
+    gx *=  DEG2RAD;
+    gy *=  DEG2RAD;
+    gz *=  DEG2RAD;
+
     float norm = sqrtf(ax*ax + ay*ay + az*az);
     ax /= norm;
     ay /= norm;
@@ -32,7 +36,7 @@ void imu_update(Quaternion* q,
     float ez = (ax * vy - ay * vx);
 
     // Gain (tune this)
-    float Kp = 2.0f;
+    float Kp = 10.0f;
 
     // Correct gyro
     gx += Kp * ex;

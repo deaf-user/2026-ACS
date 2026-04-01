@@ -49,7 +49,7 @@ public:
 #define CSBb 40 //bmp280
 #define NCSb 41 //MPU9250
 #define CALIBRATION_LOOPS 10000
-#define STATIC_OFFSETS
+// #define STATIC_OFFSETS
 
 #define pressureAlt(pressure) ((1.0f - powf((((float)pressure) / 101325.0f), 0.190284f)) * 145366.45f * 0.3048f)
 

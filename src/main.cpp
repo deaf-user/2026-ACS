@@ -72,8 +72,10 @@ uint32_t t0 = 0;
 #endif
 
 #ifdef TEST_ANGLE
-Quaternion Quat;
+Quaternion Quat = {1,0,0,0};
 static float roll, pitch, yaw;
+static float x,y,z;
+static float vx,vy,vz;
 #endif
 
 void setup() {
@@ -119,6 +121,9 @@ void setup() {
 
     #ifdef TEST_ANGLE
     sensors.readGyroscope(roll, pitch, yaw);
+    x = 0;vx = 0;
+    y = 0;vy = 0;
+    z = 0;vz = 0;
     #endif
 }
 
@@ -128,34 +133,37 @@ void loop(void){
   
   
   #ifdef TEST_ANGLE
-  static int delay_time = 100;
+  static int delay_time = 10;
   static float Ts = (float)delay_time/1000;
 
-  sensors.readAcceleration(ax,ay,az);
-  sensors.readGyroscope(gx,gy,gz);
+  // delay(delay_time);
+  // sensors.readAcceleration(ax,ay,az);
+  // sensors.readGyroscope(gx,gy,gz);
 
-  imu_update(&Quat, gx,gy,gz,ax,ay,az,Ts);
-  quat_to_euler(Quat, &roll,&pitch,&yaw);
+  // imu_update(&Quat, gx,gy,gz,ax,ay,az,Ts);
+  // quat_to_euler(Quat, &roll,&pitch,&yaw);
 
   
   // my attempt
-  // delay(delay_time);
-  // static float alpha = 0.98f;
-  // sensors.readGyroscope(gx,gy,gz);
-  // sensors.readAcceleration(ax,ay,az);
-  // // current_gx += gx*Ts;
-  // // current_gy += gy*Ts;
-  // static float accel_pitch = atan2(-ax, sqrt(ay*ay + az*az));
-  // static float accel_roll  = atan2(ay, az);
-  // current_gy = alpha * (current_gy + gy * Ts)
-  //     + (1 - alpha) * accel_pitch;
-  // current_gx  = alpha * (current_gx  + gx * Ts)
-  //     + (1 - alpha) * accel_roll;  
-  // current_gz += gz*Ts;
+  delay(delay_time);
+  static float alpha = 0.98f;
+  sensors.readGyroscope(gx,gy,gz);
+  sensors.readAcceleration(ax,ay,az);
+  roll += gx*Ts;
+  pitch += gy*Ts;
+  yaw += gz*Ts;
+
+  vx += (ax*9.8)*(Ts);x += (vx)*(Ts);
+  vy += (ay*9.8)*(Ts);y += (vy)*(Ts);
+  vz += (az*9.8)*(Ts);z += (vz)*(Ts);
 
 
+  // float accel_pitch = atan2(-ax, sqrt(ay*ay + az*az));
+  // float accel_roll  = atan2(ay, az);
 
-  print_serial_gyroscope(roll, pitch, yaw);
+  print_serial_position(x,y,z);
+  // print_serial_gyroscope(roll, pitch, yaw);
+  // print_serial_gyroscope(accel_roll, accel_pitch, 0);
   // print_serial_gyroscope(gx, gy, gz);
   #endif
 

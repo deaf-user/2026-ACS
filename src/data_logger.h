@@ -23,6 +23,7 @@ extern uint32_t t0;
 
 //Serial functions
 void print_serial_acceleration(float x, float y, float z);
+void print_serial_position(float x, float y, float z); 
 void print_serial_magneticfield(float x, float y, float z);
 void print_serial_gyroscope(float x, float y, float z);
 void print_serial_temperature(float T);

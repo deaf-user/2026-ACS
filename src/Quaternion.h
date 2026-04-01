@@ -1,5 +1,7 @@
 #include <math.h>
 
+#define DEG2RAD (3.14159265f / 180.0f)
+
 typedef struct {
     float w, x, y, z;
 } Quaternion;
